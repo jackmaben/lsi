@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LSI Attribute Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --accent:#6c63ff;
+    --bg:#ffffff;--bg2:#f7f7f8;--bg3:#f0f0f2;
+    --text:#1a1a2e;--muted:#6b7280;--border:#e5e5ea;
+    --info-bg:#eff6ff;--info-text:#1d4ed8;
+    --warn-bg:#fffbeb;--warn-text:#92400e;
+    --danger-bg:#fef2f2;--danger-text:#991b1b;
+    --success:#16a34a;
+    --phrase-accent:#0ea5e9;
+    --mono:'DM Mono',monospace;--sans:'Sora',sans-serif;
+    --radius:8px;--radius-lg:12px;
+  }
+  @media(prefers-color-scheme:dark){
+    :root{
+      --bg:#1c1c1e;--bg2:#2c2c2e;--bg3:#3a3a3c;
+      --text:#f2f2f7;--muted:#98989f;--border:#38383a;
+      --info-bg:#1e3a5f;--info-text:#93c5fd;
+      --warn-bg:#3d2a00;--warn-text:#fcd34d;
+      --danger-bg:#3b1111;--danger-text:#fca5a5;
+      --success:#4ade80;
+      --phrase-accent:#38bdf8;
+    }
+  }
+  body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:3rem}
+  .app{max-width:860px;margin:0 auto;padding:0 1.25rem}
+  code{font-family:var(--mono);background:var(--bg3);padding:1px 6px;border-radius:4px;font-size:12px;color:var(--text)}
+
+  /* Header */
+  .header{padding:2rem 0 1.25rem;border-bottom:0.5px solid var(--border);margin-bottom:1.5rem}
+  .badge{display:inline-block;padding:3px 10px;font-size:11px;font-weight:500;border-radius:20px;background:var(--info-bg);color:var(--info-text);letter-spacing:.03em;margin-bottom:10px}
+  .header h1{font-size:22px;font-weight:600;letter-spacing:-0.4px}
+  .header p{font-size:13px;color:var(--muted);margin-top:5px}
+
+  /* Config box */
+  .config-box{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:1.25rem}
+  .config-title{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+
+  /* Mode toggle */
+  .mode-toggle{display:flex;gap:4px;margin-bottom:12px;background:var(--bg3);border-radius:var(--radius);padding:3px}
+  .mode-btn{flex:1;text-align:center;padding:7px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--muted);border:none;background:transparent;font-family:var(--sans);transition:.15s}
+  .mode-btn.active{background:var(--bg);color:var(--text);border:0.5px solid var(--border)}
+
+  /* Input rows */
+  .config-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .config-row:last-of-type{margin-bottom:0}
+  .config-label{font-size:11px;font-weight:500;color:var(--muted);min-width:70px;white-space:nowrap}
+  .config-input{
+    flex:1;height:36px;padding:0 12px;font-size:13px;font-family:var(--mono);
+    background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius);
+    color:var(--text);outline:none;transition:border-color .2s
+  }
+  .config-input:focus{border-color:var(--accent)}
+  .config-input::placeholder{color:var(--muted)}
+  .check-btn{
+    height:36px;padding:0 14px;font-size:12px;font-weight:500;font-family:var(--sans);
+    background:transparent;border:0.5px solid var(--border);border-radius:var(--radius);
+    color:var(--muted);cursor:pointer;white-space:nowrap;transition:.15s
+  }
+  .check-btn:hover{background:var(--bg3);color:var(--text)}
+
+  /* Status row */
+  .status-row{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--border);font-size:12px;color:var(--muted)}
+  .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:background .3s;background:var(--muted)}
+  .dot.checking{animation:pulse 1.2s ease-in-out infinite}
+  .dot.up{background:var(--success)}
+  .dot.down{background:#ef4444}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  /* Panel visibility */
+  .panel{display:none}
+  .panel.visible{display:block}
+
+  /* Entity input */
+  .input-area{margin-bottom:1.5rem}
+  .input-row{display:flex;gap:10px;align-items:center}
+  .entity-input{flex:1;height:44px;padding:0 16px;font-size:15px;font-family:var(--sans);background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);color:var(--text);outline:none;transition:border-color .2s}
+  .entity-input:focus{border-color:var(--accent)}
+  .entity-input::placeholder{color:var(--muted)}
+  .run-btn{height:44px;padding:0 22px;font-size:14px;font-weight:500;font-family:var(--sans);background:var(--accent);color:#fff;border:none;border-radius:var(--radius-lg);cursor:pointer;white-space:nowrap;transition:opacity .15s,transform .1s}
+  .run-btn:hover{opacity:.88}
+  .run-btn:active{transform:scale(0.98)}
+  .run-btn:disabled{opacity:.4;cursor:not-allowed}
+  .hint{font-size:11px;color:var(--muted);margin-top:7px}
+
+  /* Results */
+  .entity-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;background:var(--info-bg);color:var(--info-text);font-size:14px;font-weight:500;border-radius:20px;margin-bottom:.75rem}
+  .definition{font-size:13px;color:var(--muted);margin-bottom:1.25rem;line-height:1.6}
+  .tabs{display:flex;gap:2px;background:var(--bg2);border-radius:var(--radius);padding:3px;margin-bottom:1.25rem;border:0.5px solid var(--border)}
+  .tab{flex:1;text-align:center;padding:8px;font-size:13px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--muted);transition:.15s}
+  .tab.active{background:var(--bg);color:var(--text);border:0.5px solid var(--border)}
+  .tab:hover:not(.active){color:var(--text)}
+  .section-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;margin-top:4px}
+
+  /* LSI list */
+  .lsi-list{display:flex;flex-direction:column;gap:6px;margin-bottom:1.5rem}
+  .lsi-row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);transition:background .15s}
+  .lsi-row:hover{background:var(--bg3)}
+  .lsi-rank{font-family:var(--mono);font-size:11px;color:var(--muted);min-width:22px;text-align:right}
+  .lsi-term{flex:1;font-size:14px;font-weight:500}
+  .lsi-bar-bg{width:120px;height:4px;border-radius:2px;background:var(--border);overflow:hidden;flex-shrink:0}
+  .lsi-bar-fill{height:100%;border-radius:2px;background:var(--accent)}
+  .lsi-pct{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:34px;text-align:right}
+
+  /* Cards */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:1.5rem}
+  .attr-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:12px 14px;transition:border-color .2s,background .15s}
+  .attr-card:hover{border-color:var(--accent);background:var(--bg)}
+  .attr-card .cat{font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .attr-card .val{font-size:14px;font-weight:500}
+  .attr-card .score{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:4px}
+  .score-bar{height:3px;border-radius:2px;background:var(--border);margin-top:6px;overflow:hidden}
+  .score-fill{height:100%;border-radius:2px;background:var(--accent)}
+
+  /* Table */
+  .table-wrap{border:0.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:1.5rem}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:var(--bg2);padding:10px 14px;font-weight:500;text-align:left;border-bottom:0.5px solid var(--border);color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+  td{padding:10px 14px;border-bottom:0.5px solid var(--border);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--bg2)}
+
+  /* Tags */
+  .tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;margin:2px}
+  .tag.primary{background:var(--info-bg);color:var(--info-text)}
+  .tag.secondary{background:var(--bg2);color:var(--muted);border:0.5px solid var(--border)}
+  .tag.warning{background:var(--warn-bg);color:var(--warn-text)}
+  .tag.phrase-tx{background:#ecfdf5;color:#065f46}
+  @media(prefers-color-scheme:dark){.tag.phrase-tx{background:#064e3b;color:#6ee7b7}}
+  .tag-group{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1.5rem}
+
+  /* Clusters */
+  .cluster-block{margin-bottom:1.25rem}
+  .cluster-terms{display:flex;flex-wrap:wrap;gap:6px}
+
+  /* JSON */
+  .flex-between{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .json-wrap{background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:16px;font-family:var(--mono);font-size:12px;line-height:1.75;white-space:pre-wrap;word-break:break-all;max-height:480px;overflow-y:auto;color:var(--text)}
+  .copy-btn{font-size:12px;padding:5px 12px;border:0.5px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;font-family:var(--sans);transition:.15s}
+  .copy-btn:hover{background:var(--bg2);color:var(--text)}
+
+  /* Loading / Empty / Error */
+  .loading{display:flex;align-items:center;gap:12px;padding:2.5rem 0;color:var(--muted);font-size:14px}
+  .spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .empty{padding:3rem 0;text-align:center;color:var(--muted)}
+  .empty-icon{font-size:36px;margin-bottom:10px;opacity:.5}
+  .empty strong{font-size:15px;display:block;margin-bottom:4px;color:var(--text)}
+  .empty p{font-size:13px}
+  .error{background:var(--danger-bg);border:0.5px solid var(--danger-text);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--danger-text);margin-top:1rem;line-height:1.6}
+
+  /* Footer */
+  .footer{margin-top:3rem;padding-top:1rem;border-top:0.5px solid var(--border);font-size:12px;color:var(--muted);text-align:center}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <span class="badge">LSI Agent</span>
+    <h1>LSI Attribute Generator</h1>
+    <p>Enter a core entity to generate semantically related attributes, variants, and co-occurrence terms</p>
+  </div>
+
+  <!-- ── Connection config ─────────────────────────────────────────────────── -->
+  <div class="config-box">
+    <div class="config-title">Connection</div>
+
+    <!--
+      Two modes:
+      1. Worker mode  — calls your deployed Cloudflare Worker (recommended, no CORS issues)
+      2. Direct mode  — calls Anthropic directly with an API key
+                        NOTE: only works when this file is served over HTTPS from a proper
+                        origin (e.g. via `npx serve .`). Opening as file:// will still CORS-fail
+                        because the browser blocks cross-origin requests from file:// regardless
+                        of headers. Use Worker mode for local file:// usage.
+    -->
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="modeWorker" onclick="setMode('worker')">Via Cloudflare Worker</button>
+      <button class="mode-btn"        id="modeDirect" onclick="setMode('direct')">Direct (HTTPS origin only)</button>
+    </div>
+
+    <!-- Worker panel -->
+    <div class="panel visible" id="panelWorker">
+      <div class="config-row">
+        <span class="config-label">Worker URL</span>
+        <input class="config-input" id="workerUrl" type="text"
+          placeholder="https://your-worker.workers.dev" autocomplete="off"/>
+        <button class="check-btn" onclick="checkWorker(true)">Check</button>
+      </div>
+      <div class="status-row">
+        <div class="dot checking" id="workerDot"></div>
+        <span id="workerLabel">Enter Worker URL and click Check</span>
+      </div>
+    </div>
+
+    <!-- Direct panel -->
+    <div class="panel" id="panelDirect">
+      <div class="config-row">
+        <span class="config-label">API Key</span>
+        <input class="config-input" id="apiKey" type="password"
+          placeholder="sk-ant-api03-..." autocomplete="off" oninput="updateKeyStatus(this.value)"/>
+      </div>
+      <div class="status-row">
+        <div class="dot" id="keyDot"></div>
+        <span id="keyLabel" style="color:var(--muted)">API key not entered</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Entity input ──────────────────────────────────────────────────────── -->
+  <div class="input-area">
+    <div class="input-row">
+      <input class="entity-input" id="entityInput" type="text"
+        placeholder="e.g. electric vehicle, machine learning, coffee, yoga..."/>
+      <button class="run-btn" id="runBtn" onclick="runAgent()">Generate LSI ↗</button>
+    </div>
+    <p class="hint">Press Enter or click Generate — the agent extracts LSI attributes across multiple semantic dimensions</p>
+  </div>
+
+  <!-- ── Results ───────────────────────────────────────────────────────────── -->
+  <div id="results">
+    <div class="empty">
+      <div class="empty-icon">◎</div>
+      <strong>No entity yet</strong>
+      <p>Configure your connection above, then enter a core entity</p>
+    </div>
+  </div>
+
+  <div class="footer" id="footerNote">Powered by Claude · LSI Attribute Agent</div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   STATE
+   ═══════════════════════════════════════════════════════════════════════════ */
+let currentData = null;
+let mode = 'worker'; // 'worker' | 'direct'
+
+const ANTHROPIC_ENDPOINT = 'https://api.anthropic.com/v1/messages';
+
+const entityInput = document.getElementById('entityInput');
+const runBtn      = document.getElementById('runBtn');
+const resultsDiv  = document.getElementById('results');
+
+entityInput.addEventListener('keydown', e => { if(e.key === 'Enter') runAgent(); });
+
+/* Restore saved values */
+const savedWorkerUrl = localStorage.getItem('lsi_workerUrl');
+if(savedWorkerUrl) document.getElementById('workerUrl').value = savedWorkerUrl;
+const savedMode = localStorage.getItem('lsi_mode');
+if(savedMode) setMode(savedMode, false);
+
+document.getElementById('workerUrl').addEventListener('change', e => {
+  localStorage.setItem('lsi_workerUrl', e.target.value.trim());
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MODE SWITCHING
+   ═══════════════════════════════════════════════════════════════════════════ */
+function setMode(m, save = true) {
+  mode = m;
+  if(save) localStorage.setItem('lsi_mode', m);
+  document.getElementById('modeWorker').classList.toggle('active', m === 'worker');
+  document.getElementById('modeDirect').classList.toggle('active', m === 'direct');
+  document.getElementById('panelWorker').classList.toggle('visible', m === 'worker');
+  document.getElementById('panelDirect').classList.toggle('visible', m === 'direct');
+  document.getElementById('footerNote').textContent = m === 'worker'
+    ? 'Powered by Claude via Cloudflare Worker · API key never in browser'
+    : 'Powered by Claude · Direct mode — serve over HTTPS to avoid CORS';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WORKER HEALTH CHECK
+   ═══════════════════════════════════════════════════════════════════════════ */
+function getWorkerBase() {
+  return document.getElementById('workerUrl').value.trim().replace(/\/+$/, '');
+}
+
+async function checkWorker(manual = false) {
+  const dot   = document.getElementById('workerDot');
+  const label = document.getElementById('workerLabel');
+  const base  = getWorkerBase();
+
+  if(!base) {
+    dot.className = 'dot down';
+    label.textContent = 'Enter your Worker URL first';
+    label.style.color = 'var(--danger-text)';
+    return false;
+  }
+
+  dot.className = 'dot checking';
+  label.textContent = 'Checking…';
+  label.style.color = 'var(--muted)';
+
+  try {
+    const r = await fetch(`${base}/health`, { signal: AbortSignal.timeout(5000) });
+    const data = await r.json().catch(() => ({}));
+    if(r.ok && data.status === 'ok') {
+      dot.className = 'dot up';
+      label.textContent = 'Worker reachable — ready to generate';
+      label.style.color = 'var(--success)';
+      return true;
+    }
+    throw new Error(`HTTP ${r.status}`);
+  } catch(err) {
+    dot.className = 'dot down';
+    label.textContent = manual
+      ? `Unreachable: ${err.message}`
+      : 'Worker unreachable';
+    label.style.color = 'var(--danger-text)';
+    return false;
+  }
+}
+
+// Debounced auto-check when Worker URL changes
+document.getElementById('workerUrl').addEventListener('input', () => {
+  clearTimeout(window._workerCheckTimer);
+  window._workerCheckTimer = setTimeout(() => checkWorker(), 900);
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   API KEY STATUS (direct mode)
+   ═══════════════════════════════════════════════════════════════════════════ */
+function updateKeyStatus(val) {
+  const dot   = document.getElementById('keyDot');
+  const label = document.getElementById('keyLabel');
+  const v = val.trim();
+  if(!v) {
+    dot.className = 'dot'; dot.style.background = 'var(--muted)';
+    label.textContent = 'API key not entered'; label.style.color = 'var(--muted)';
+  } else if(v.startsWith('sk-ant-') && v.length > 30) {
+    dot.className = 'dot up';
+    label.textContent = '✓ Key looks valid'; label.style.color = 'var(--success)';
+  } else {
+    dot.className = 'dot down';
+    label.textContent = 'Key format looks wrong — should start with sk-ant-'; label.style.color = 'var(--danger-text)';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BUILD FETCH OPTIONS
+   Depending on mode, either:
+     - Worker mode:  POST to Worker URL, no API key in browser
+     - Direct mode:  POST to Anthropic directly with API key + the special
+                     bypass header. This ONLY works when the page is served
+                     over HTTPS from a real origin (not file://). Browsers
+                     enforce CORS on file:// unconditionally.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function buildFetchParams(body) {
+  if(mode === 'worker') {
+    const base = getWorkerBase();
+    if(!base) throw new Error('Worker URL is not set.');
+    return {
+      url: `${base}/v1/messages`,
+      headers: { 'Content-Type': 'application/json' }
+    };
+  } else {
+    // Direct mode
+    const apiKey = document.getElementById('apiKey').value.trim();
+    if(!apiKey) throw new Error('API key is not entered.');
+    if(!apiKey.startsWith('sk-ant-')) throw new Error('API key should start with sk-ant-');
+    return {
+      url: ANTHROPIC_ENDPOINT,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        // Required for direct browser access — only works on HTTPS origins,
+        // NOT on file:// or http://localhost without a proper HTTPS cert.
+        'anthropic-dangerous-direct-browser-access': 'true'
+      }
+    };
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MAIN AGENT
+   ═══════════════════════════════════════════════════════════════════════════ */
+async function runAgent() {
+  const entity = entityInput.value.trim();
+  if(!entity) { entityInput.focus(); return; }
+
+  // Pre-flight validation
+  if(mode === 'worker') {
+    const ok = await checkWorker();
+    if(!ok) {
+      showError('Worker is unreachable. Check the URL or switch to Direct mode if serving over HTTPS.');
+      return;
+    }
+  } else {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    if(!apiKey) {
+      showError('Enter your Anthropic API key. <br><small>Note: Direct mode requires this page to be served over HTTPS — it will not work when opened as a local <code>file://</code> due to browser CORS policy.</small>');
+      return;
+    }
+  }
+
+  runBtn.disabled = true;
+  runBtn.textContent = 'Analyzing...';
+  resultsDiv.innerHTML = `<div class="loading"><div class="spinner"></div><span>Analyzing <strong>${escapeHtml(entity)}</strong> for LSI attributes…</span></div>`;
+
+  const systemPrompt = `You are an LSI (Latent Semantic Indexing) attribute extraction expert. Given a core entity, identify all semantically related attributes, co-occurrence terms, variants, and contextual dimensions.
+
+Respond ONLY with a valid JSON object. No markdown, no backticks, no extra text before or after. Use this exact structure:
+{
+  "entity": "string (normalized entity name)",
+  "definition": "string (1-sentence definition)",
+  "attributes": [
+    {
+      "category": "string (e.g. Physical, Functional, Contextual, Synonyms, Related Concepts, Use Cases, Technical, Emotional)",
+      "term": "string",
+      "relevance": number between 0.50 and 1.0,
+      "type": "primary|secondary|tertiary"
+    }
+  ],
+  "semantic_clusters": [
+    { "cluster": "string", "terms": ["string"] }
+  ],
+  "intent_signals": ["string"],
+  "negative_keywords": ["string"],
+  "co_occurring_phrases": [
+    {
+      "phrase": "string (2-5 word phrase that prominently co-occurs with this entity in real-world content)",
+      "prominence": number between 0.50 and 1.0,
+      "context": "string — one of: informational|commercial|navigational|transactional"
+    }
+  ]
+}
+Generate 28-35 attributes across at least 6 distinct semantic categories. Relevance scores must be realistic and varied.
+Generate 15-20 co_occurring_phrases — real multi-word phrases (not single words) commonly found alongside this entity in search results, articles, and web content. Rank by prominence descending.`;
+
+  const requestBody = {
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 4000,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: `Core entity: "${entity}"` }]
+  };
+
+  try {
+    const { url, headers } = buildFetchParams(requestBody);
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody)
+    });
+
+    if(!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const raw  = data.content?.find(b => b.type === 'text')?.text || '';
+    currentData = parseJSON(raw);
+    renderResults(currentData);
+
+  } catch(err) {
+    let msg = escapeHtml(err.message || String(err));
+    // Surface a clear hint for the common CORS error in direct mode
+    if(mode === 'direct' && (msg.includes('fetch') || msg.includes('CORS') || msg.includes('network') || msg.includes('Failed'))) {
+      msg += '<br><small>This is likely a CORS error. Direct mode only works when this page is served over HTTPS from a real origin. Use <strong>Via Cloudflare Worker</strong> mode instead, or run <code>npx serve .</code> and open via http://localhost.</small>';
+    }
+    showError(msg);
+  } finally {
+    runBtn.disabled = false;
+    runBtn.textContent = 'Generate LSI ↗';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RENDER
+   ═══════════════════════════════════════════════════════════════════════════ */
+function renderResults(d) {
+  resultsDiv.innerHTML = `
+    <div class="entity-chip">◈ ${escapeHtml(d.entity)}</div>
+    <p class="definition">${escapeHtml(d.definition)}</p>
+    <div class="tabs">
+      <div class="tab active" id="tab-lsi"      onclick="switchTab('lsi')">LSI Terms</div>
+      <div class="tab"        id="tab-phrases"  onclick="switchTab('phrases')">Phrases</div>
+      <div class="tab"        id="tab-cards"    onclick="switchTab('cards')">Attribute Cards</div>
+      <div class="tab"        id="tab-table"    onclick="switchTab('table')">Table View</div>
+      <div class="tab"        id="tab-clusters" onclick="switchTab('clusters')">Clusters</div>
+      <div class="tab"        id="tab-json"     onclick="switchTab('json')">JSON Export</div>
+    </div>
+    <div id="tabContent"></div>`;
+  renderTab('lsi', d);
+}
+
+function switchTab(tab) {
+  ['lsi','phrases','cards','table','clusters','json'].forEach(t =>
+    document.getElementById('tab-' + t)?.classList.toggle('active', t === tab)
+  );
+  renderTab(tab, currentData);
+}
+
+function renderTab(tab, d) {
+  const el = document.getElementById('tabContent');
+  if(!el) return;
+
+  if(tab === 'lsi') {
+    const sorted = [...d.attributes].sort((a, b) => b.relevance - a.relevance);
+    let html = `<div class="flex-between" style="margin-bottom:12px">
+      <span class="section-label">${sorted.length} LSI terms · sorted by relevance</span>
+      <button class="copy-btn" onclick="copyLSI()">Copy all terms</button>
+    </div><div class="lsi-list">`;
+    sorted.forEach((a, i) => {
+      const pct = Math.round(a.relevance * 100);
+      html += `<div class="lsi-row">
+        <span class="lsi-rank">${i + 1}</span>
+        <span class="lsi-term">${escapeHtml(a.term)}</span>
+        <div class="lsi-bar-bg"><div class="lsi-bar-fill" style="width:${pct}%"></div></div>
+        <span class="lsi-pct">${pct}%</span>
+      </div>`;
+    });
+    el.innerHTML = html + '</div>';
+
+  } else if(tab === 'cards') {
+    const cats = [...new Set(d.attributes.map(a => a.category))];
+    let html = '';
+    cats.forEach(cat => {
+      html += `<div class="section-label">${escapeHtml(cat)}</div><div class="grid">`;
+      d.attributes.filter(a => a.category === cat).forEach(a => {
+        const pct = Math.round(a.relevance * 100);
+        html += `<div class="attr-card">
+          <div class="cat">${escapeHtml(a.type)}</div>
+          <div class="val">${escapeHtml(a.term)}</div>
+          <div class="score">${pct}% relevance</div>
+          <div class="score-bar"><div class="score-fill" style="width:${pct}%"></div></div>
+        </div>`;
+      });
+      html += '</div>';
+    });
+    if(d.intent_signals?.length) {
+      html += `<div class="section-label">Intent Signals</div><div class="tag-group">`;
+      d.intent_signals.forEach(t => html += `<span class="tag primary">${escapeHtml(t)}</span>`);
+      html += '</div>';
+    }
+    if(d.negative_keywords?.length) {
+      html += `<div class="section-label">Negative Keywords</div><div class="tag-group">`;
+      d.negative_keywords.forEach(t => html += `<span class="tag warning">${escapeHtml(t)}</span>`);
+      html += '</div>';
+    }
+    el.innerHTML = html;
+
+  } else if(tab === 'table') {
+    const rows = d.attributes.map(a => `<tr>
+      <td>${escapeHtml(a.term)}</td>
+      <td>${escapeHtml(a.category)}</td>
+      <td><span class="tag ${a.type==='primary'?'primary':a.type==='secondary'?'secondary':'warning'}">${escapeHtml(a.type)}</span></td>
+      <td style="font-family:var(--mono);font-size:12px">${Number(a.relevance).toFixed(2)}</td>
+    </tr>`).join('');
+    el.innerHTML = `<div class="table-wrap"><table>
+      <thead><tr><th>Term</th><th>Category</th><th>Type</th><th>Relevance</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+
+  } else if(tab === 'clusters') {
+    let html = '';
+    (d.semantic_clusters || []).forEach(c => {
+      html += `<div class="cluster-block"><div class="section-label">${escapeHtml(c.cluster)}</div><div class="cluster-terms">`;
+      c.terms.forEach(t => html += `<span class="tag secondary">${escapeHtml(t)}</span>`);
+      html += '</div></div>';
+    });
+    el.innerHTML = html || '<div class="empty"><p>No cluster data returned.</p></div>';
+
+  } else if(tab === 'phrases') {
+    const phrases = d.co_occurring_phrases || [];
+    if(!phrases.length) {
+      el.innerHTML = '<div class="empty"><p>No phrase data returned.</p></div>';
+      return;
+    }
+    const sorted = [...phrases].sort((a,b) => b.prominence - a.prominence);
+    const ctxColor = {
+      informational: 'primary',
+      commercial: 'warning',
+      navigational: 'secondary',
+      transactional: 'phrase-tx'
+    };
+    let html = `<div class="flex-between" style="margin-bottom:12px">
+      <span class="section-label">${sorted.length} co-occurring phrases · by prominence</span>
+      <button class="copy-btn" onclick="copyPhrases()">Copy phrases</button>
+    </div><div class="lsi-list">`;
+    sorted.forEach((p, i) => {
+      const pct = Math.round(p.prominence * 100);
+      const ctx = (p.context || '').toLowerCase();
+      const tagCls = ctxColor[ctx] || 'secondary';
+      html += `<div class="lsi-row">
+        <span class="lsi-rank">${i+1}</span>
+        <span class="lsi-term">${escapeHtml(p.phrase)}</span>
+        <span class="tag ${tagCls}" style="font-size:10px;padding:1px 7px;margin:0 4px 0 0">${escapeHtml(p.context||'')}</span>
+        <div class="lsi-bar-bg"><div class="lsi-bar-fill" style="width:${pct}%;background:var(--phrase-accent)"></div></div>
+        <span class="lsi-pct">${pct}%</span>
+      </div>`;
+    });
+    el.innerHTML = html + '</div>';
+
+  } else if(tab === 'json') {
+    el.innerHTML = `<div class="flex-between">
+      <span class="section-label">Raw JSON output</span>
+      <button class="copy-btn" onclick="copyJSON()">Copy JSON</button>
+    </div><div class="json-wrap">${escapeHtml(JSON.stringify(d, null, 2))}</div>`;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+// Robust JSON extraction: handles fences, preamble/postamble, and truncation
+function parseJSON(raw) {
+  let s = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  try { return JSON.parse(s); } catch(_) {}
+  const start = s.indexOf('{'), end = s.lastIndexOf('}');
+  if(start !== -1 && end > start) {
+    try { return JSON.parse(s.slice(start, end + 1)); } catch(_) {}
+    let frag = s.slice(start, end + 1);
+    let opens = 0, arrays = 0;
+    for(const c of frag) {
+      if(c==='{') opens++; else if(c==='}') opens--;
+      else if(c==='[') arrays++; else if(c===']') arrays--;
+    }
+    frag = frag.replace(/,\s*$/, '') + ']'.repeat(Math.max(0,arrays)) + '}'.repeat(Math.max(0,opens));
+    try { return JSON.parse(frag); } catch(_) {}
+  }
+  throw new Error('Response could not be parsed as JSON. Please try again.');
+}
+
+function escapeHtml(s) {
+  if(typeof s !== 'string') s = String(s);
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showError(msg) {
+  resultsDiv.innerHTML = `<div class="error"><strong>Error:</strong> ${msg}</div>`;
+}
+
+function copyLSI() {
+  if(!currentData) return;
+  const text = [...currentData.attributes]
+    .sort((a,b) => b.relevance - a.relevance)
+    .map(a => `${a.term} (${Math.round(a.relevance*100)}%)`)
+    .join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    const b = document.querySelector('.copy-btn');
+    if(b){ b.textContent='Copied!'; setTimeout(()=>b.textContent='Copy all terms',1800); }
+  });
+}
+
+function copyPhrases() {
+  if(!currentData?.co_occurring_phrases?.length) return;
+  const text = [...currentData.co_occurring_phrases]
+    .sort((a,b) => b.prominence - a.prominence)
+    .map(p => `${p.phrase} [${p.context}] (${Math.round(p.prominence*100)}%)`)
+    .join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    const b = document.querySelector('.copy-btn');
+    if(b){ b.textContent='Copied!'; setTimeout(()=>b.textContent='Copy phrases',1800); }
+  });
+}
+
+function copyJSON() {
+  if(!currentData) return;
+  navigator.clipboard.writeText(JSON.stringify(currentData,null,2)).then(() => {
+    const b = document.querySelector('.copy-btn');
+    if(b){ b.textContent='Copied!'; setTimeout(()=>b.textContent='Copy JSON',1800); }
+  });
+}
+</script>
+</body>
+</html>
